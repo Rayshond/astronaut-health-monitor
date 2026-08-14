@@ -8,10 +8,60 @@ import { METRIC_CONFIGS, MetricKey, Severity } from './types';
 
 const METRIC_KEYS = Object.keys(METRIC_CONFIGS) as MetricKey[];
 
+/**
+ * Computes a 0–1 danger score for a metric value:
+ *   0.0  = squarely within normal range
+ *   0.5  = at the warning boundary
+ *   1.0  = at or beyond the critical boundary
+ */
+function computeDangerScore(value: number, key: MetricKey): number {
+  const cfg = METRIC_CONFIGS[key];
+  const [nLo, nHi]   = cfg.normalRange;
+  const [wLo, wHi]   = cfg.warningRange;
+  const [cLo, cHi]   = cfg.criticalRange;
+
+  // How far is the value outside normal range on either side?
+  let distNormal   = 0;
+  let distWarning  = 0;
+  let distCritical = 0;
+
+  if (value < nLo) {
+    distNormal   = nLo - value;
+    distWarning  = Math.max(0, wLo - value);
+    distCritical = Math.max(0, cLo - value);
+  } else if (value > nHi) {
+    distNormal   = value - nHi;
+    distWarning  = Math.max(0, value - wHi);
+    distCritical = Math.max(0, value - cHi);
+  } else {
+    return 0; // fully normal
+  }
+
+  // Span from normal boundary to warning boundary
+  const warnSpan = Math.max(
+    (nLo - wLo) || (wHi - nHi) || 1,
+    value < nLo ? (nLo - wLo) : (wHi - nHi)
+  );
+  const critSpan = Math.max(
+    value < nLo ? (wLo - cLo) : (cHi - wHi),
+    0.001
+  );
+
+  if (distCritical > 0) {
+    // Beyond warning — interpolate 0.5 → 1.0
+    return Math.min(1.0, 0.5 + 0.5 * (distCritical / critSpan));
+  }
+  if (distWarning > 0) {
+    return 0.5; // exactly at warning boundary
+  }
+  // Between normal and warning — interpolate 0.0 → 0.5
+  return Math.min(0.5, 0.5 * (distNormal / Math.max(warnSpan, 0.001)));
+}
+
 export default function App() {
   const { snapshot, history, connected, reconnecting } = useMetrics();
 
-  // Build a severity map from active alerts
+  // Build severity map from alerts
   const severityMap = useMemo<Record<MetricKey, Severity>>(() => {
     const map = {} as Record<MetricKey, Severity>;
     METRIC_KEYS.forEach(k => { map[k] = 'normal'; });
@@ -19,11 +69,21 @@ export default function App() {
     snapshot.alerts.forEach(alert => {
       const key = alert.metric as MetricKey;
       if (key in map) {
-        // Critical always wins over warning
         if (alert.severity === 'critical' || map[key] !== 'critical') {
           map[key] = alert.severity;
         }
       }
+    });
+    return map;
+  }, [snapshot]);
+
+  // Build continuous danger score map (0–1) for smooth color gradient
+  const dangerScoreMap = useMemo<Record<MetricKey, number>>(() => {
+    const map = {} as Record<MetricKey, number>;
+    METRIC_KEYS.forEach(k => { map[k] = 0; });
+    if (!snapshot) return map;
+    METRIC_KEYS.forEach(k => {
+      map[k] = computeDangerScore(snapshot.metrics[k].value, k);
     });
     return map;
   }, [snapshot]);
@@ -63,17 +123,17 @@ export default function App() {
 
           {/* Vitals */}
           <Section label="🫀 Crew Vitals">
-            <MetricGrid metricKeys={vitals} snapshot={snapshot} history={history} severityMap={severityMap} />
+            <MetricGrid metricKeys={vitals} snapshot={snapshot} history={history} severityMap={severityMap} dangerScoreMap={dangerScoreMap} />
           </Section>
 
           {/* Cabin */}
           <Section label="🌬️ Cabin Environment">
-            <MetricGrid metricKeys={cabin} snapshot={snapshot} history={history} severityMap={severityMap} />
+            <MetricGrid metricKeys={cabin} snapshot={snapshot} history={history} severityMap={severityMap} dangerScoreMap={dangerScoreMap} />
           </Section>
 
           {/* Performance */}
           <Section label="🧠 Performance & Wellness">
-            <MetricGrid metricKeys={performance} snapshot={snapshot} history={history} severityMap={severityMap} />
+            <MetricGrid metricKeys={performance} snapshot={snapshot} history={history} severityMap={severityMap} dangerScoreMap={dangerScoreMap} />
           </Section>
 
           {/* Demo controls */}
@@ -105,9 +165,10 @@ interface MetricGridProps {
   snapshot: ReturnType<typeof useMetrics>['snapshot'];
   history: ReturnType<typeof useMetrics>['history'];
   severityMap: Record<MetricKey, Severity>;
+  dangerScoreMap: Record<MetricKey, number>;
 }
 
-const MetricGrid: React.FC<MetricGridProps> = ({ metricKeys, snapshot, history, severityMap }) => (
+const MetricGrid: React.FC<MetricGridProps> = ({ metricKeys, snapshot, history, severityMap, dangerScoreMap }) => (
   <div style={{
     display:             'grid',
     gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
@@ -124,6 +185,7 @@ const MetricGrid: React.FC<MetricGridProps> = ({ metricKeys, snapshot, history, 
           config={config}
           history={history[key]}
           severity={severityMap[key]}
+          dangerScore={dangerScoreMap[key]}
         />
       );
     })}

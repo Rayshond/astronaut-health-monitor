@@ -1,24 +1,17 @@
 import React, { useState } from 'react';
-import { Alert, Severity } from '../types';
+import { Alert } from '../types';
 
 interface AlertPanelProps {
   alerts: Alert[];
 }
 
-const SEVERITY_STYLE: Record<Severity | 'normal', { bg: string; border: string; badge: string; badgeBg: string }> = {
-  critical: { bg: '#1a0000', border: '#ef4444', badge: 'CRITICAL', badgeBg: '#ef4444' },
-  warning:  { bg: '#1a1100', border: '#f59e0b', badge: 'WARNING',  badgeBg: '#d97706' },
-  normal:   { bg: '#0a1628', border: '#1e3a5f', badge: 'OK',       badgeBg: '#1d4ed8' },
-};
-
 const AlertItem: React.FC<{ alert: Alert }> = ({ alert }) => {
   const [expanded, setExpanded] = useState(false);
-  const style = SEVERITY_STYLE[alert.severity];
 
   return (
     <div style={{
-      background:   style.bg,
-      border:       `1px solid ${style.border}`,
+      background:   '#1a0000',
+      border:       '1px solid #ef4444',
       borderRadius: 10,
       overflow:     'hidden',
       marginBottom: 10,
@@ -27,29 +20,40 @@ const AlertItem: React.FC<{ alert: Alert }> = ({ alert }) => {
       <button
         onClick={() => setExpanded(!expanded)}
         style={{
-          width:          '100%',
-          background:     'transparent',
-          border:         'none',
-          cursor:         'pointer',
-          padding:        '12px 14px',
-          display:        'flex',
-          alignItems:     'center',
-          gap:            10,
-          textAlign:      'left',
+          width:      '100%',
+          background: 'transparent',
+          border:     'none',
+          cursor:     'pointer',
+          padding:    '12px 14px',
+          display:    'flex',
+          alignItems: 'center',
+          gap:        10,
+          textAlign:  'left',
         }}
       >
-        {/* Severity badge */}
-        <span style={{
-          background:   style.badgeBg,
-          color:        '#fff',
-          fontSize:     10,
-          fontWeight:   700,
-          padding:      '2px 7px',
-          borderRadius: 4,
-          letterSpacing: '0.07em',
+        {/* Pulsing dot */}
+        <div style={{
+          width:        8,
+          height:       8,
+          borderRadius: '50%',
+          background:   '#ef4444',
+          boxShadow:    '0 0 8px #ef4444',
+          animation:    'pulse 1.2s ease-in-out infinite',
           flexShrink:   0,
+        }} />
+
+        {/* DANGER badge */}
+        <span style={{
+          background:    '#ef4444',
+          color:         '#fff',
+          fontSize:      10,
+          fontWeight:    700,
+          padding:       '2px 7px',
+          borderRadius:  4,
+          letterSpacing: '0.07em',
+          flexShrink:    0,
         }}>
-          {style.badge}
+          DANGER
         </span>
 
         <span style={{ flex: 1, color: '#e2e8f0', fontSize: 14, fontWeight: 600 }}>
@@ -61,19 +65,19 @@ const AlertItem: React.FC<{ alert: Alert }> = ({ alert }) => {
         </span>
       </button>
 
-      {/* Current value pill */}
+      {/* Current value */}
       <div style={{ padding: '0 14px 10px', display: 'flex', alignItems: 'center', gap: 8 }}>
         <span style={{ fontSize: 12, color: '#8baac4' }}>
-          Current: <strong style={{ color: '#e2e8f0' }}>{alert.value} {alert.unit}</strong>
+          Current: <strong style={{ color: '#f87171' }}>{alert.value} {alert.unit}</strong>
         </span>
         <span style={{ fontSize: 11, color: '#3d5a73' }}>
           {new Date(alert.timestamp).toLocaleTimeString()}
         </span>
       </div>
 
-      {/* Expanded: description + actions + protocol */}
+      {/* Expanded detail */}
       {expanded && (
-        <div style={{ padding: '0 14px 14px', borderTop: `1px solid ${style.border}22` }}>
+        <div style={{ padding: '0 14px 14px', borderTop: '1px solid #ef444422' }}>
           <p style={{ color: '#94a3b8', fontSize: 13, margin: '10px 0 12px' }}>
             {alert.description}
           </p>
@@ -108,58 +112,55 @@ const AlertItem: React.FC<{ alert: Alert }> = ({ alert }) => {
 };
 
 export const AlertPanel: React.FC<AlertPanelProps> = ({ alerts }) => {
-  const criticals = alerts.filter(a => a.severity === 'critical');
-  const warnings  = alerts.filter(a => a.severity === 'warning');
+  // Only show critical alerts in this panel
+  const dangers = alerts.filter(a => a.severity === 'critical');
 
   return (
     <div style={{
       background:   '#060e1a',
-      border:       '1px solid #1e3a5f',
+      border:       `1px solid ${dangers.length > 0 ? '#ef4444' : '#1e3a5f'}`,
       borderRadius: 14,
       padding:      16,
       height:       '100%',
       overflowY:    'auto',
+      transition:   'border-color 1.2s ease',
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-        <span style={{ fontSize: 16 }}>🚨</span>
-        <span style={{ color: '#e2e8f0', fontWeight: 700, fontSize: 15 }}>Active Alerts</span>
-        {criticals.length > 0 && (
+        <span style={{ fontSize: 16 }}>{dangers.length > 0 ? '🚨' : '🛡️'}</span>
+        <span style={{ color: '#e2e8f0', fontWeight: 700, fontSize: 15 }}>
+          {dangers.length > 0 ? 'Critical Alerts' : 'System Status'}
+        </span>
+        {dangers.length > 0 && (
           <span style={{
-            background: '#ef4444', color: '#fff',
-            borderRadius: 10, fontSize: 11, fontWeight: 700,
-            padding: '1px 8px',
+            background:   '#ef4444',
+            color:        '#fff',
+            borderRadius: 10,
+            fontSize:     11,
+            fontWeight:   700,
+            padding:      '1px 8px',
+            animation:    'pulse 1.2s ease-in-out infinite',
           }}>
-            {criticals.length} CRITICAL
-          </span>
-        )}
-        {warnings.length > 0 && (
-          <span style={{
-            background: '#d97706', color: '#fff',
-            borderRadius: 10, fontSize: 11, fontWeight: 700,
-            padding: '1px 8px',
-          }}>
-            {warnings.length} WARNING
+            {dangers.length} DANGER
           </span>
         )}
       </div>
 
-      {alerts.length === 0 ? (
+      {dangers.length === 0 ? (
         <div style={{
           display:        'flex',
           flexDirection:  'column',
           alignItems:     'center',
           justifyContent: 'center',
           padding:        '40px 0',
-          color:          '#2d4a63',
         }}>
           <div style={{ fontSize: 36, marginBottom: 8 }}>✅</div>
           <div style={{ fontSize: 14, color: '#3d6080' }}>All systems nominal</div>
+          <div style={{ fontSize: 11, color: '#2d4a63', marginTop: 6 }}>
+            Alerts fire only at critical danger levels
+          </div>
         </div>
       ) : (
-        <>
-          {criticals.map(a => <AlertItem key={a.id + a.timestamp} alert={a} />)}
-          {warnings.map(a  => <AlertItem key={a.id + a.timestamp} alert={a} />)}
-        </>
+        dangers.map(a => <AlertItem key={a.id + a.timestamp} alert={a} />)
       )}
     </div>
   );

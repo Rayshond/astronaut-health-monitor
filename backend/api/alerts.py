@@ -28,52 +28,65 @@ class Alert:
 
 
 # ─── Thresholds ──────────────────────────────────────────────────────────────
-# Each metric: { "warning": (lo, hi), "critical": (lo, hi) }
-# None means no lower/upper bound for that level
+# Physiologically accurate per metric.
+# "warning" = caution zone — card color shifts, NO alert panel entry
+# "critical" = danger zone — alert panel fires with DANGER label
+# None means no bound in that direction for that level
 THRESHOLDS = {
+    # 0 bpm = death. >220 bpm = lethal arrhythmia territory.
     "heart_rate": {
-        "warning":  (55,  110),
-        "critical": (45,  130),
+        "warning":  (50,   120),
+        "critical": (40,   150),
     },
+    # Below 90% SpO2 = hypoxia. 100% is max possible.
     "spo2": {
-        "warning":  (94,  None),
-        "critical": (90,  None),
+        "warning":  (93,  None),
+        "critical": (88,  None),
     },
+    # <4 breaths/min = respiratory arrest. >35 = severe distress.
     "respiratory_rate": {
-        "warning":  (10,  22),
-        "critical": (8,   28),
+        "warning":  (8,   25),
+        "critical": (4,   35),
     },
+    # Systolic: <70 = shock. >180 = hypertensive crisis / stroke risk.
     "systolic_bp": {
-        "warning":  (90,  135),
-        "critical": (80,  155),
+        "warning":  (85,  145),
+        "critical": (70,  180),
     },
+    # Diastolic: <40 = shock. >110 = hypertensive emergency.
     "diastolic_bp": {
-        "warning":  (55,  88),
-        "critical": (50,  95),
+        "warning":  (50,  95),
+        "critical": (40,  110),
     },
+    # <95F = hypothermia. >103F = dangerous fever / heat stroke.
     "body_temp": {
-        "warning":  (97,  99.5),
-        "critical": (96,  101),
+        "warning":  (96.5, 100.4),
+        "critical": (95.0, 103.0),
     },
+    # ISS normal ~0.3%. >1.5% = headaches/cognitive impairment. >3% = toxic.
     "cabin_co2": {
-        "warning":  (None, 0.7),
-        "critical": (None, 1.0),
-    },
-    "cabin_o2": {
-        "warning":  (19.5, 23.5),
-        "critical": (18.5, 24.5),
-    },
-    "radiation_dose": {
         "warning":  (None, 1.0),
-        "critical": (None, 2.0),
+        "critical": (None, 1.5),
     },
+    # <16% = hypoxia. >25% = fire/explosion risk. 0% = unsurvivable.
+    "cabin_o2": {
+        "warning":  (18.5, 24.0),
+        "critical": (16.0, 25.5),
+    },
+    # >2 mSv/day = elevated cancer risk. >5 = acute radiation syndrome risk.
+    "radiation_dose": {
+        "warning":  (None, 2.0),
+        "critical": (None, 5.0),
+    },
+    # <4 hrs sustained = severe cognitive impairment / mission risk.
     "sleep_hours": {
-        "warning":  (6.0,  None),
-        "critical": (5.0,  None),
+        "warning":  (5.5,  None),
+        "critical": (4.0,  None),
     },
+    # HRV <15ms = severe stress / autonomic collapse risk.
     "hrv": {
-        "warning":  (30,  None),
-        "critical": (20,  None),
+        "warning":  (25,  None),
+        "critical": (15,  None),
     },
 }
 
